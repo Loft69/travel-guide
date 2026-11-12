@@ -1,157 +1,193 @@
--- ============================================================
 -- База данных: travel_guide
--- Интернет-магазин / каталог туров "Travel Guide"
--- СУБД: MariaDB 10.8 / MySQL 8 (phpMyAdmin, Open Server Panel)
--- Кодировка: utf8mb4
--- ============================================================
+-- Сайт путешествий по ТЗ: путеводители, советы, фотогалереи, блог
+-- СУБД: MariaDB / MySQL (phpMyAdmin, Open Server Panel)
 
-CREATE DATABASE IF NOT EXISTS travel_guide
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS travel_guide CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE travel_guide;
 
 -- ------------------------------------------------------------
--- Пользователи сайта (администратор / клиент)
+-- Пользователи (регистрация и авторизация)
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
-  id            INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  last_name     VARCHAR(50)  NOT NULL,               -- фамилия
-  first_name    VARCHAR(50)  NOT NULL,               -- имя
-  middle_name   VARCHAR(50)  DEFAULT NULL,           -- отчество
-  login         VARCHAR(50)  NOT NULL,               -- логин
-  email         VARCHAR(100) NOT NULL,               -- e-mail
-  password_hash VARCHAR(255) NOT NULL,               -- пароль (хэш)
-  role          ENUM('admin','client') NOT NULL DEFAULT 'client',
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_users_login (login),
-  UNIQUE KEY uq_users_email (email)
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  last_name     VARCHAR(50)  NOT NULL,
+  first_name    VARCHAR(50)  NOT NULL,
+  middle_name   VARCHAR(50)  DEFAULT NULL,
+  login         VARCHAR(30)  NOT NULL,
+  email         VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role          ENUM('admin', 'client') NOT NULL DEFAULT 'client',
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT uq_users_login UNIQUE (login),
+  CONSTRAINT uq_users_email UNIQUE (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
--- Категории туров (страны / типы отдыха)
+-- Путеводители: страна, город, достопримечательности, отели и т.д.
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS categories (
-  id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  name        VARCHAR(100) NOT NULL,
-  slug        VARCHAR(100) NOT NULL,
-  description TEXT,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_categories_slug (slug)
+CREATE TABLE IF NOT EXISTS guides (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  country     VARCHAR(50)  NOT NULL,
+  city        VARCHAR(50)  NOT NULL,
+  title       VARCHAR(120) NOT NULL,
+  description VARCHAR(500) NOT NULL,
+  sights      TEXT NOT NULL COMMENT 'основные достопримечательности',
+  hotels      TEXT NOT NULL COMMENT 'рекомендации по отелям',
+  food        TEXT NOT NULL COMMENT 'рестораны и кафе',
+  shops       TEXT NOT NULL COMMENT 'магазины и шоппинг',
+  tips        TEXT NOT NULL COMMENT 'полезные советы по месту',
+  is_popular  TINYINT(1) NOT NULL DEFAULT 0,
+  KEY idx_guides_country (country)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
--- Туры (товары каталога)
+-- Статьи: раздел «Советы и рекомендации» (advice) и «Блог» (blog)
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS tours (
-  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  category_id  INT UNSIGNED NOT NULL,
-  title        VARCHAR(150) NOT NULL,               -- название тура
-  country      VARCHAR(80)  NOT NULL,               -- страна
-  resort       VARCHAR(120) DEFAULT NULL,           -- курорт / город
-  description  TEXT,                                -- описание
-  price        DECIMAL(10,2) NOT NULL DEFAULT 0,    -- цена, руб.
-  days         SMALLINT UNSIGNED NOT NULL DEFAULT 7,-- длительность, дней
-  rating       DECIMAL(2,1) NOT NULL DEFAULT 4.5,   -- рейтинг 0..5
-  image        VARCHAR(255) DEFAULT NULL,           -- файл изображения
-  is_popular   TINYINT(1) NOT NULL DEFAULT 0,       -- популярный тур
-  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_tours_category (category_id),
-  CONSTRAINT fk_tours_category FOREIGN KEY (category_id)
-    REFERENCES categories (id) ON DELETE CASCADE ON UPDATE CASCADE
+CREATE TABLE IF NOT EXISTS articles (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  section     ENUM('advice', 'blog') NOT NULL,
+  title       VARCHAR(150) NOT NULL,
+  excerpt     VARCHAR(400) NOT NULL,
+  body        TEXT NOT NULL,
+  author_name VARCHAR(80) NOT NULL DEFAULT 'Команда Travel Guide',
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_articles_section (section)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
--- Корзины клиентов
+-- Фотогалерея: фото с подписью о месте и событии
 -- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS carts (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+CREATE TABLE IF NOT EXISTS photos (
+  id       INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title    VARCHAR(120) NOT NULL,
+  country  VARCHAR(50) NOT NULL,
+  caption  VARCHAR(500) NOT NULL COMMENT 'о месте и событии на фото',
+  ph_class VARCHAR(20) NOT NULL DEFAULT 'city' COMMENT 'класс градиента-заглушки',
+  image_path VARCHAR(255) DEFAULT NULL,
+  KEY idx_photos_country (country)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
+-- Комментарии: к статьям и фотографиям
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS comments (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id    INT UNSIGNED NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_carts_user (user_id),
-  CONSTRAINT fk_carts_user FOREIGN KEY (user_id)
-    REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------
--- Позиции корзины
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS cart_items (
-  id         INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  cart_id    INT UNSIGNED NOT NULL,
-  tour_id    INT UNSIGNED NOT NULL,
-  quantity   SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_cart_tour (cart_id, tour_id),
-  CONSTRAINT fk_cart_items_cart FOREIGN KEY (cart_id)
-    REFERENCES carts (id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_cart_items_tour FOREIGN KEY (tour_id)
-    REFERENCES tours (id)  ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------
--- Заказы
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS orders (
-  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  user_id      INT UNSIGNED NOT NULL,
-  total_price  DECIMAL(10,2) NOT NULL DEFAULT 0,
-  status       ENUM('new','confirmed','paid','cancelled') NOT NULL DEFAULT 'new',
-  comment      TEXT,
-  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (id),
-  KEY idx_orders_user (user_id),
-  CONSTRAINT fk_orders_user FOREIGN KEY (user_id)
-    REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ------------------------------------------------------------
--- Состав заказа
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS order_items (
-  id           INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  order_id     INT UNSIGNED NOT NULL,
-  tour_id      INT UNSIGNED NOT NULL,
-  quantity     SMALLINT UNSIGNED NOT NULL DEFAULT 1,
-  price        DECIMAL(10,2) NOT NULL DEFAULT 0,    -- цена на момент покупки
-  PRIMARY KEY (id),
-  KEY idx_order_items_order (order_id),
-  CONSTRAINT fk_order_items_order FOREIGN KEY (order_id)
-    REFERENCES orders (id) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT fk_order_items_tour FOREIGN KEY (tour_id)
-    REFERENCES tours (id)  ON DELETE CASCADE ON UPDATE CASCADE
+  article_id INT UNSIGNED DEFAULT NULL,
+  photo_id   INT UNSIGNED DEFAULT NULL,
+  body       TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_comments_article (article_id),
+  KEY idx_comments_photo (photo_id),
+  CONSTRAINT fk_comments_user FOREIGN KEY (user_id)
+    REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_comments_article FOREIGN KEY (article_id)
+    REFERENCES articles (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT fk_comments_photo FOREIGN KEY (photo_id)
+    REFERENCES photos (id) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT chk_comment_target CHECK (article_id IS NOT NULL OR photo_id IS NOT NULL)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- Начальные данные
 -- ============================================================
 
--- Категории
-INSERT INTO categories (name, slug, description) VALUES
-  ('Пляжный отдых',      'beach',      'Туры на морские курорты.'),
-  ('Экскурсионные туры', 'excursion',  'Поездки по городам и достопримечательностям.'),
-  ('Горные туры',        'mountains',  'Походы и отдых в горах.'),
-  ('Круизы',             'cruise',     'Морские круизы на лайнерах.'),
-  ('Лечебные туры',      'health',     'Санатории и оздоровительные программы.');
-
--- Туры
-INSERT INTO tours (category_id, title, country, resort, description, price, days, rating, image, is_popular) VALUES
-  (1, 'Тур в Турцию — Анталия',      'Турция',    'Анталия',    'Отель 5* с собственным пляжем, всё включено. Рядом — старый город Калеичи.', 78900.00, 7, 4.8, 'turkey-antalya.jpg', 1),
-  (1, 'Тур в Египет — Хургада',      'Египет',    'Хургада',    'Дайвинг на коралловых рифах, отель с «всё включено».', 54900.00, 7, 3.9, 'egypt-hurghada.jpg', 1),
-  (1, 'Тур в Таиланд — Пхукет',      'Таиланд',   'Пхукет',     'Десять дней на острове: пляжи, острова Пхи-Пхи, экскурсии по джунглям и тайский массаж.', 112340.00, 10, 4.7, 'thailand-phuket.jpg', 1),
-  (2, 'Экскурсионный тур по Италии', 'Италия',    'Рим — Флоренция', 'Рим, Ватикан, Флоренция, Уффици, Венеция. Гранд-тур по классическому маршруту.', 98000.00, 8, 4.9, 'italy-rome.jpg', 1),
-  (2, 'Тур во Францию — Париж',      'Франция',   'Париж',      'Эйфелева башня, Лувр, Версаль, вечерний круиз по Сене. Размещение в 9-м округе.', 87520.00, 7, 4.2, 'france-paris.jpg', 0),
-  (2, 'Тур по Чехии — Прага',        'Чехия',     'Прага',      'Пять дней в Праге с выездом в Крумлов.', 46900.00, 5, 4.5, 'czech-prague.jpg', 0),
-  (3, 'Горный тур в Швейцарию',      'Швейцария', 'Интерлакен', 'Альпы: Юнгфрау, ледник Алеч, канатные дороги. Пешие маршруты для подготовленных.', 133870.00, 8, 4.9, 'switzerland-alps.jpg', 0),
-  (3, 'Тур на Эльбрус',              'Россия',    'Приэльбрусье', 'Восхождение с гидом, ночёвки в приютах, акклиматизационные выходы.', 62000.00, 9, 4.1, 'russia-elbrus.jpg', 0),
-  (4, 'Круиз по Средиземному морю',  'Италия',    'Круиз из Чивитавеккьи', 'Лайнер из Рима: Барселона, Марсель, Пальма-де-Мальорка.', 154600.00, 8, 4.6, 'med-cruise.jpg', 1),
-  (4, 'Круиз по Балтике',            'Россия',    'Санкт-Петербург', 'Из Петербурга в Таллин, Стокгольм и Хельсинки.', 78000.00, 5, 3.6, 'baltic-cruise.jpg', 0),
-  (5, 'Санаторий в Кисловодске',     'Россия',    'Кисловодск', 'Нарзанные ванны, терренкур, санаторий у Курортного бульвара.', 38500.00, 10, 4.4, 'kislovodsk-sanatorium.jpg', 0),
-  (5, 'Тур в Карловы Вары',          'Чехия',     'Карловы Вары', 'Минеральные источники и колоннады. Девять дней с лечебными процедурами и экскурсией в Прагу на выходных.', 57180.00, 9, 4.0, 'karlovy-vary.jpg', 0);
-
--- администратор: admin / admin123
+-- Администратор: admin / admin123
 INSERT INTO users (last_name, first_name, middle_name, login, email, password_hash, role) VALUES
   ('Сидоров', 'Иван', 'Петрович', 'admin', 'admin@travel-guide.local',
-   '$2y$10$NMPDiiUz2s8EVF8itHqK1.XwbeEBTJn0etnz4mpmFlMvobgoowGU.', 'admin');
+   '$2y$10$NMPDiiUz2s8EVF8itHqK1.XwbeEBTJn0etnz4mpmFlMvobgoowGU.', 'admin'),
+  ('Ковалёва', 'Анна', 'Сергеевна', 'anna', 'anna@example.com',
+   '$2y$10$NMPDiiUz2s8EVF8itHqK1.XwbeEBTJn0etnz4mpmFlMvobgoowGU.', 'client'),
+  ('Лебедев', 'Дмитрий', 'Алексеевич', 'dima', 'dima@example.com',
+   '$2y$10$NMPDiiUz2s8EVF8itHqK1.XwbeEBTJn0etnz4mpmFlMvobgoowGU.', 'client');
+
+-- Путеводители
+INSERT INTO guides (country, city, title, description, sights, hotels, food, shops, tips, is_popular) VALUES
+  ('Италия', 'Рим', 'Рим — вечный город', 'Столица Италии: античные руины, папский Ватикан и лучшие кофейни Европы.',
+   'Колизей, Римский форум, Пантеон, фонтан Треви, Ватикан с собором Св. Петра и Сикстинской капеллой.',
+   'Дорого и центрально: Hotel Artemide (4*, ~200 EUR). Бюджетно: The RomeHello (~60 EUR общая комната). Район Трастевере — компромисс цены и атмосферы.',
+   'Траттория Da Enzo al 29 — римская классика без туристов. Roscioli — лучшие карбонара и пицца. Кофе пьют стоя у стойки, как местные.',
+   'Via del Corso — масс-маркет. Via Condotti — бутики. Рынок Campo de'' Fiori — продукты и сувениры.',
+   'Билеты в Колизей и Ватикан покупайте онлайн за несколько дней. Вода из уличных колонок («насони») бесплатная и чистая. Берегите карманы в очередях.', 1),
+  ('Италия', 'Флоренция', 'Флоренция — колыбель Возрождения', 'Город искусства: галерея Уффици, собор Санта-Мария-дель-Фьоре и виды с piazzale Michelangelo.',
+   'Уффици, Дуомо с куполом Брунеллески, палаццо Веккьо, мост Понте Веккьо, галерея Академия (Давид Микеланджело).',
+   'Hotel Spadai (4*, ~180 EUR) — рядом с Дуомо. Бюджет: Plus Florence (~45 EUR) с террасой и бассейном.',
+   'Trattoria Mario — обеды с 1953 года, очередь с 11:30. Mercato Centrale — этаж с едой на любой вкус.',
+   'Кожаные изделия у Сан-Лоренцо: торгуйтесь. Золотые лавки на Понте Веккьо — дорого, но легендарно.',
+   'Купол Дуомо — только по записи. Билет в Уффици действует 3 дня и включает палаццо Питти. Лучший закат — с piazzale Michelangelo.', 1),
+  ('Турция', 'Истанбул', 'Истанбул на двух континентах', 'Мегаполис на стыке Европы и Азии: мечети, базары и Босфор.',
+   'Айя-София, Голубая мечеть, дворец Топкапы, цистерна Базилика, Гранд-базар, Spice Bazaar.',
+   'Hotel Amira Istanbul (4*, ~90 EUR) — рядом с Султанахмет. Бюджет: Steps Hostel (~25 EUR) в том же районе.',
+   'Çiya Sofrası (Kadıköy) — анатолийская кухня. Karaköy Lokantası — рыбные мезе. Уличная simit и крепкий чай — завтрак за копейки.',
+   'Гранд-базар: торг обязателен, скидка 30–50%. Керамика и текстиль лучше в Kadıköy, цены честнее.',
+   'Купите Istanbulkart в аэропорту — она работает на метро, трамваях и паромах. Паром за 10 минут до заката вдоль Босфора — лучшая экскурсия города.', 1),
+  ('Чехия', 'Прага', 'Прага — город ста шпилей', 'Готический центр, пражский Град и пиво, которое варят с X века.',
+   'Карлов мост, Староместская площадь с астрономическими часами, Пражский Град, Собор Св. Вита, еврейский квартал Йозефов.',
+   'Hotel U Zlatého stromu (4*, ~120 EUR) на Королевской дороге. Бюджет: Hostel One Home (~30 EUR), Винограды.',
+   'Lokál Dlouhá — гулаш и пиво Pilsner Urquell «с крана». Cafe Savoy — завтраки с видом на башню.',
+   'Пассаж Svestka и Kotva — стиль. Бемское стекло и гранаты — на Celetná, торгуйтесь.',
+   'Пражский Град бесплатно — на смене караула в полдень. Многодневный билет на общественный транспорт выгоднее разовых. Обмен валюты только с надписью «0% commission».', 0),
+  ('Япония', 'Токио', 'Токио — будущее по расписанию', 'Столица, где синтоистские храмы соседствуют с небоскрёбами, а поезд приходит секунда в секунду.',
+   'Перекрёсток Сибуя, храм Сэнсо-дзи, парк Уэно, смотровая Tokyo Skytree, район деликатесов Tsukiji Outer Market.',
+   'Shinjuku Prince Hotel (~100 EUR). Бюджетно: UNPLAN Kagurazaka (~35 EUR) — чистый современный хостел.',
+   'Итиран рамэн — за ширмой, чтобы никто не видел, как ты ешь. Izakaya в переулках Yurakucho под ж/д путями.',
+   'Akihabara — электроника и аниме. Ginza — бутики. Комбини (7-Eleven) — круглосуточная еда приличного качества.',
+   'Suica/Pasmo — единая транспортная карта. Метро в час пик: не садитесь в вагон с женщинами-машинистами (women-only). Наличные всё ещё нужны в мелких заведениях.', 1),
+  ('Россия', 'Камчатка', 'Камчатка — край вулканов', 'Полуостров, где медведей больше, чем туристов: вулканы, гейзеры и нерестилища лосося.',
+   'Вулканы Авачинская и Корякская сопки, Долина гейзеров, Курильское озеро, Халактырский пляж с чёрным песком.',
+   'Отель «Смок» в Елизово (~60 EUR). Турбазы у подножия вулканов — ночёвка с видом на кратер (~50 EUR).',
+   'Камчатский лосось и крабы — в ресторанах «Серебро» и «Зелёная кухня». Икра напрямую у рыбаков в посёлках.',
+   'Местная рыба и икра в рынке «Шамса». Сувениры — изделия из вулканического камня.',
+   'Сезон — июль–сентябрь. Вертолётные экскурсии дорогие, но Долина гейзеров того стоит. Термоскважины — после похода обязательно.', 0);
+
+-- Статьи: советы (advice)
+INSERT INTO articles (section, title, excerpt, body, author_name, created_at) VALUES
+  ('advice', 'Как спланировать поездку за 7 шагов', 'Пошаговый план: от выбора направления до страховки — без паники и лишних трат.',
+   '1. Выберите направление под бюджет и сезон. 2. Проверьте визовые требования на консульском сайте. 3. Составьте скелет маршрута: города и даты. 4. Купите билеты — сначала дорогие перелёты, потом внутренние. 5. Забронируйте жильё с бесплатной отменой. 6. Оформите страховку с покрытием от 35 000 EUR. 7. За неделю — распечатайте документы и скачайте офлайн-карты.\n\nГлавное правило: на перевозку и логистику закладывайте не больше 30% бюджета, остальное — на впечатления.', 'Команда Travel Guide', '2026-09-05 10:00:00'),
+  ('advice', 'Транспорт и билеты: что и когда покупать', 'Авиабилеты, поезда и аренда авто — как не переплатить и не остаться без места.',
+   'Авиабилеты: покупайте за 6–10 недель для ближних направлений и за 3–5 месяцев для дальних. Вторник и среда — самые дешёвые дни вылета. Подпишитесь на price-alerts у агрегаторов и не гонитесь за «горящими» скидками в сезон.\n\nПоезда в Европе — бронируйте заранее у операторов (Trenitalia, DB, SNCF): цены растут по мере заполнения. Аренда авто — берите с полным баком «вернуть пустым» только если точно израсходуете топливо, иначе переплата.\n\nГородской транспорт почти везде выгоднее по многодневному билету.', 'Команда Travel Guide', '2026-09-12 10:00:00'),
+  ('advice', 'Безопасность в путешествии', 'Документы, деньги, здоровье и гаджеты: чек-лист, который снимает 90% проблем.',
+   'Документы: сканы паспорта и страховки — в облако и на телефон. Оригинал носите в отеле в сейфе, на улице — копию.\n\nДеньги: две карты разных банков в разных местах. Наличные — на 2 дня расходов, не больше. \n\nЗдоровье: аптечка из «самого нужного» (обезболивающее, пластыри, средства для желудка, личные лекарства).\n\nГаджеты: power-bank и локальный eSIM. В людных местах рюкзак вперёд себя.\n\nПравило номер один: если что-то выглядит как развод (браслет «в подарок», «фотография с попугаем») — это развод.', 'Команда Travel Guide', '2026-09-20 10:00:00'),
+  ('advice', 'Как сэкономить в поездке без потери впечатлений', 'Двенадцать приёмов: от «счастливых часов» до бесплатных музеев по расписанию.',
+   'Еда: обедайте там, где едят местные, а не там, где сидят туристы у достопримечательности. «Счастливые часы» в кафе — после 16:00. Комбини и рынки вместо ресторанов на каждый приём пищи.\n\nЖильё: центр города не обязателен — рядом с метро на 2–3 остановки дешевле на 30–40%.\n\nМузеи: почти в каждом городе есть день бесплатного входа (Лувр — первое воскресенье месяца, Прага — первый вторник). Городские туристические карты считайте по формуле: количество музеев × цена билета против карты.\n\nИ главное: лучшие впечатления — прогулки, рынки, парки и общение — бесплатны.', 'Команда Travel Guide', '2026-10-01 10:00:00'),
+  ('advice', 'Выбор жилья: отель, апартаменты или хостел', 'Критерии выбора, о которых молчат букинги: район, отзывы по-русски и подвохи «полного пансиона».',
+   'Отель — когда важен сервис и один ночлег. Апартаменты — от 3 ночей: своя кухня окупает разницу. Хостел — нормальный вариант не только для студента: отдельные комнаты в хостелах дешевле отеля того же уровня.\n\nЧитая отзывы, сортируйте по «новые»: за год отель может сменить владельца и характер. Смотрите отзывы на разных языках —.local проблемы всплывают в отзывах на языке страны.\n\n«Завтрак включён» стоит проверять: в дешёвых отелях это кофе и круассан из пекарни за углом. Апартаменты с «free cancellation» бронируйте сразу, отменить всегда успеете.', 'Команда Travel Guide', '2026-10-10 10:00:00');
+
+-- Статьи: блог (blog)
+INSERT INTO articles (section, title, excerpt, body, author_name, created_at) VALUES
+  ('blog', 'Десять дней в Японии: личный опыт', 'Как мы объехали Токио, Киото и Осаку за 96 000 йен на человека — с ошибками и выводами.',
+   'Маршрут: 4 дня Токио — синкансэн — 3 дня Киото — 1 день Нара — 2 дня Осака. JR Pass на 7 дней окупился на второй поездке на синкансэне.\n\nЧто сделали правильно: купили Suica в аэропорту, жили в райне Уэно (дёшево и транспортный узел), храмы смотрели с утра — к 10 часам уже толпы.\n\nОшиблись: не забронировали ресторан в Gion заранее (месяц листа ожидания!), недооценили дождь в конце мая.\n\nИтог: 96 000 йен на человека без перелёта (жильё, еда, транспорт, билеты) — это комфортный средний уровень. Обязательно вернёмся осенью.', 'Анна Ковалёва', '2026-10-15 09:00:00'),
+  ('blog', 'Как я заблудился в Каппадокии и это было лучшим за поездку', 'История про пропущенный рассвет на воздушных шарах и деревню, которой нет в путеводителях.',
+   'План был идеальный: встать в 4:30, занять место на смотровой в Гёреме, смотреть сотню шаров на рассвете. План сломался: я повернул не на ту развилку и через 40 минут пешком оказался в деревне Чавушин, где шарах было всего пять — зато ни одного человека.\n\nПять шаров над каменными ульями, петухи, чай у местного деда без общего языка — и это оказалось сильнее открытки из Гёреме.\n\nВывод, который я повторяю себе каждую поездку: сбиться с маршрута — не значит потерять день. Иногда это и есть путешествие.', 'Дмитрий Лебедев', '2026-10-22 09:00:00'),
+  ('blog', 'Камчатка: что взять с собой, если едешь впервые', 'Список из личного опыта: от непромокаемых ботинок до запасной пары носков на каждый день.',
+   'Обувь: непромокаемые треккинговые ботинки, разбитые заранее. Мокрые кроссовки на вулкане — конец маршрута.\n\nОдежда: слои. Термобельё, флис, ветровка-мембрана. В июле может быть +8 и ветер 15 м/с.\n\nМелочи, которые спасли: запасные носки в герметичном пакете (на каждый день!), крем от солнца (облучение на снежниках жёсткое), перчатки для верёвки на подъёме, наличные — терминалов в туре нет.\n\nИ не берите лишнего: всё, что понесёте, будете нести на себе 12 часов.', 'Анна Ковалёва', '2026-10-28 09:00:00'),
+  ('blog', 'Медленный путешественник: один город на две недели', 'Эксперимент: жить в Лиссабоне как местный, без чек-листов и «надо успеть».',
+   'Две недели в одном городе вместо пяти городов за тот же срок. Что изменилось:\n\nК третьему дню пропала гонка. Я перестал фотографировать «обязательные» места и начал завтракать в одной и той же пекарне, где хозяйка к пятнице запомнила мой заказ.\n\nУспел: соседний Синтру (два раза), океанариум, десять смотровых и день вообще без плана.\n\nНе успел: половину «must-see» из путеводителей — и не жалею.\n\nВывод: у медленного путешествия цена та же, а воспоминаний — больше. Рекомендую попробовать хотя бы раз.', 'Дмитрий Лебедев', '2026-11-03 09:00:00');
+
+-- Фотогалерея
+INSERT INTO photos (title, country, caption, ph_class, image_path) VALUES
+  ('Закат над Колизеем', 'Италия', 'Рим, вечер пятницы: последний свет бьёт в арку третьего яруса. Рядом — вечерняя прогулка по Via dei Fori Imperiali.', 'city', 'uploads/gallery/1.jpg'),
+  ('Купол Брунеллески', 'Италия', 'Флоренция, вид с колокольни Джотто. Купол собора Санта-Мария-дель-Фьоре — 1436 год, до сих пор крупнейший кирпичный купол мира.', 'architecture', 'uploads/gallery/2.jpg'),
+  ('Паром на Азию', 'Турция', 'Истанбул, паром Eminönü — Kadıköy на закате. 20 минут и цена чая — лучший вид на горизонт города.', 'sea', 'uploads/gallery/3.jpg'),
+  ('Утро на Карловом мосту', 'Чехия', 'Прага, 6:40 утра. Мост пустой — единственное время, когда его можно увидеть таким.', 'city', 'uploads/gallery/4.jpg'),
+  ('Перекрёсток Сибуя', 'Япония', 'Токио, вечер пятницы. До трёх тысяч человек за один цикл светофора. Снято с окна кафе в здании overlooking.', 'city', 'uploads/gallery/5.jpg'),
+  ('Храм Сэнсо-дзи', 'Япония', 'Токио, район Асакуса. Ворота Каминаримон с фонарём весом 700 кг — вход в старейший храм города.', 'architecture', 'uploads/gallery/6.jpg'),
+  ('Вулкан Авачинская сопка', 'Россия', 'Камчатка, восхождение базового уровня. Вид с высоты 2741 м на «домашние» вулканы Петропавловска.', 'mountains', 'uploads/gallery/7.jpg'),
+  ('Халактырский пляж', 'Россия', 'Камчатка, чёрный вулканический песок и Тихий океан. Вода +8°C даже в августе — красиво, но не для купания.', 'sea', 'uploads/gallery/8.jpg'),
+  ('Каналы Венеции', 'Италия', 'Раннее утро в Каннареджо: до наплыва туристов — час тишины, только гондолы и голуби.', 'sea', 'uploads/gallery/9.jpg'),
+  ('Пассаж Киото', 'Япония', 'Киото, торговая аркада Nishiki Market. 400 лет истории и 130 лавок — от маринованных овощей до ножей.', 'architecture', 'uploads/gallery/10.jpg'),
+  ('Долина гейзеров', 'Россия', 'Камчатка, вертолётная экскурсия. Гейзер «Большой» выстреливает на 30 метров раз в 3–4 часа.', 'mountains', 'uploads/gallery/11.jpg'),
+  ('Пражский Град со Влтавы', 'Чехия', 'Прага, вид с парома. Собор Св. Вита строился почти 600 лет — и видно почему.', 'architecture', 'uploads/gallery/12.jpg'),
+  ('Гранд-базар', 'Турция', 'Истанбул, Гранд-базар: 4 тысячи лавок на 61 улице. Здесь торг — не опция, а часть покупки.', 'architecture', 'uploads/gallery/13.jpg'),
+  ('Нерестилище на Курильском озере', 'Россия', 'Камчатка, август: медведи ловят лосося в метре от наблюдательной вышки.', 'mountains', 'uploads/gallery/14.jpg'),
+  ('Фонтан Треви без толпы', 'Италия', 'Рим, 7 утра. Ритуал: монета через левое плечо — и обратно в Рим. Работает, проверено трижды.', 'architecture', 'uploads/gallery/15.jpg'),
+  ('Синкансэн у Фудзи', 'Япония', 'Токио — Киото, правая сторона по ходу движения, секунда за секунду — и такой кадр.', 'mountains', 'uploads/gallery/16.jpg');
+
+-- Комментарии (от демо-пользователей)
+INSERT INTO comments (user_id, article_id, photo_id, body, created_at) VALUES
+  (2, 6, NULL, 'Была в Гёреме в мае — толпы на смотровой реально дикие. Чавушин подтверждаю: там и шарах видно, и людей нет.', '2026-10-23 12:30:00'),
+  (3, 6, NULL, 'Тот же принцип сработал мне в Праге: ушёл с Карлова моста в Кампу — лучшее утро поездки.', '2026-10-24 18:10:00'),
+  (2, 1, NULL, 'Пункт про страховку с покрытием 35 000 EUR — в шенген реально требуют, сам попал на проверку на границе.', '2026-09-06 14:20:00'),
+  (3, 4, NULL, 'Про обеды у местных: работает безотказно. Спрашивайте у бармена, где он ест — ни разу не подводило.', '2026-10-02 09:45:00'),
+  (2, NULL, 1, 'Вечерний Колизей лучше утреннего: свет тёплый и очередей нет. Спасибо за напоминание!', '2026-10-05 21:00:00'),
+  (3, NULL, 7, 'Поднимался на Авачинскую в прошлом июле. Совет про разбитую заранее обувь — это святое, видел людей в новых ботинках, зрелище печальное.', '2026-10-08 19:30:00');

@@ -9,9 +9,9 @@ if (current_user()) {
     exit;
 }
 
-$error  = '';
-$login  = '';
-$redirect = isset($_GET['redirect']) ? (string)$_GET['redirect'] : '';
+$error = '';
+$login = '';
+$redirect = isset($_GET['redirect']) ? (string) $_GET['redirect'] : '';
 // Разрешаем только внутренние редиректы
 if ($redirect !== '' && $redirect[0] !== '/') {
     $redirect = '';
@@ -19,8 +19,8 @@ if ($redirect !== '' && $redirect[0] !== '/') {
 
 /* Проверка учётных данных */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $login    = trim((string)($_POST['login'] ?? ''));
-    $password = (string)($_POST['password'] ?? '');
+    $login = trim((string) ($_POST['login'] ?? ''));
+    $password = (string) ($_POST['password'] ?? '');
 
     if ($login === '' || $password === '') {
         $error = 'Заполните логин и пароль';
@@ -33,10 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user && password_verify($password, $user['password_hash'])) {
             // Успешный вход: сохраняем в сессию
             session_regenerate_id(true);           // защита от фиксации сессии
-            $_SESSION['user_id'] = (int)$user['id'];
+            $_SESSION['user_id'] = (int) $user['id'];
 
             // Администратора — в админку, клиента — на главную
-            $target = $user['role'] === 'admin' ? '/admin/index.php' : ($redirect ?: '/');
+            $target = $user['role'] === 'admin' ? ($redirect ?: '/') : ($redirect ?: '/');
             header('Location: ' . $target);
             exit;
         }
@@ -60,8 +60,7 @@ require_once __DIR__ . '/includes/header.php';
             <!-- Логин -->
             <div class="form__row">
                 <label class="form__label" for="login">Логин или e-mail</label>
-                <input class="form__input" type="text" id="login" name="login"
-                       value="<?= e($login) ?>" required>
+                <input class="form__input" type="text" id="login" name="login" value="<?= e($login) ?>" required>
                 <div class="form__error" data-error-for="login"></div>
             </div>
 

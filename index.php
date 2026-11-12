@@ -1,113 +1,153 @@
 <?php
 require_once __DIR__ . '/includes/header.php';
 
-// класс заглушки и иконка для карточки тура по slug категории
-function tour_placeholder($t)
-{
-    $map = [
-        'beach' => 'beach',
-        'excursion' => 'excursion',
-        'mountains' => 'mountains',
-        'cruise' => 'cruise',
-        'health' => 'health',
-    ];
-    $icons = [
-        'beach' => '🏖',
-        'excursion' => '🏛',
-        'mountains' => '🏔',
-        'cruise' => '🚢',
-        'health' => '🌿',
-    ];
-    $slug = $t['slug'] ?? '';
-    return [$map[$slug] ?? '', $icons[$slug] ?? '🌍'];
-}
-?>
-
-<?php
-/* Популярные туры (для главной) */
+/* популярные путеводители для главной */
 $popular = db()->query(
-    'SELECT t.*, c.name AS category_name, c.slug AS category_slug
-     FROM tours t
-     JOIN categories c ON c.id = t.category_id
-     WHERE t.is_popular = 1
-     ORDER BY t.rating DESC
-     LIMIT 8'
+    'SELECT * FROM guides WHERE is_popular = 1 ORDER BY id LIMIT 4'
 )->fetchAll();
 
-/* Все категории */
-$categories = db()->query('SELECT * FROM categories ORDER BY name')->fetchAll();
+/* свежие статьи блога */
+$blog = db()->query(
+    "SELECT * FROM articles WHERE section = 'blog' ORDER BY created_at DESC LIMIT 3"
+)->fetchAll();
+
+/* свежие фото */
+$photos = db()->query('SELECT * FROM photos ORDER BY id DESC LIMIT 4')->fetchAll();
+
+/* карта классов заглушек фото по типу */
+$imgCls = ['city', 'architecture', 'sea', 'mountains'];
 ?>
 
 <main>
+    <!-- главный баннер: приветствие и описание сайта -->
     <section class="hero">
         <div class="container">
-            <div class="hero__badge">Каталог туров онлайн</div>
-            <h1 class="hero__title">Путешествия без лишней суеты</h1>
-            <p class="hero__text">Море, экскурсии, горы и круизы — выбрали, оформили, полетели.
-                Без походов по офисам и звонков менеджеру.</p>
+            <div class="hero__badge">Путеводитель по миру</div>
+            <h1 class="hero__title">Путешествуйте сами — без турагентов</h1>
+            <p class="hero__text">Проверенные путеводители по странам и городам, практические советы
+                по планированию, живые фотографии и личные истории из наших поездок.</p>
             <div class="hero__actions">
-                <a href="/tours.php" class="btn btn--accent">Выбрать тур</a>
-                <a href="#popular" class="btn btn--ghost">Популярные направления</a>
+                <a href="/guides.php" class="btn btn--accent">Открыть путеводители</a>
+                <a href="#advice-preview" class="btn btn--ghost">Советы путешественникам</a>
             </div>
         </div>
     </section>
 
+    <!-- навигация по разделам сайта -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section__title">Разделы сайта</h2>
+            <div class="grid">
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/guides.php">Путеводители</a></h3>
+                        <p class="card__desc">Страны и города: достопримечательности, отели, рестораны, магазины и советы по каждому месту.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/advice.php">Советы и рекомендации</a></h3>
+                        <p class="card__desc">Как планировать поездку, выбирать транспорт и жильё, оставаться в безопасности и экономить.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/gallery.php">Фотогалереи</a></h3>
+                        <p class="card__desc">Фотографии из разных стран: пейзажи, архитектура и события — с подписями и комментариями.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/about.php">О нас</a></h3>
+                        <p class="card__desc">Команда сайта, наши цели и миссия, контактная информация для связи.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/blog.php">Блог</a></h3>
+                        <p class="card__desc">Личные истории и приключения авторов с рекомендациями из собственного опыта.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/register.php">Регистрация</a></h3>
+                        <p class="card__desc">Зарегистрируйтесь, чтобы комментировать статьи и фотографии.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <!-- о сайте: тематика и цели -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section__title">О чём сайт</h2>
+            <div class="grid">
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title">Тематика</h3>
+                        <p class="card__desc">Самостоятельные путешествия: страны, города, маршруты и всё, что нужно знать до и во время поездки.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title">Цель сайта</h3>
+                        <p class="card__desc">Собрать проверенную на практике информацию в одном месте, чтобы планирование поездки занимало часы, а не недели.</p>
+                    </div>
+                </article>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title">Для кого</h3>
+                        <p class="card__desc">Для тех, кто планирует поездку сам: без турагентов, но с картой, запасом времени и нашим сайтом.</p>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <?php if ($popular): ?>
+    <!-- популярные путеводители -->
     <section class="section" id="popular">
         <div class="container">
             <h2 class="section__title">Популярные направления</h2>
-
-            <?php if (!$popular): ?>
-                <div class="alert alert--error">Туры пока не добавлены. Зайдите позже!</div>
-            <?php else: ?>
             <div class="grid">
-                <?php foreach ($popular as $t): [$phCls, $phIcon] = tour_placeholder(['slug' => $t['category_slug']]); ?>
+                <?php foreach ($popular as $g): ?>
                 <article class="card">
-                    <!-- Изображение тура или заглушка с градиентом по категории -->
-                    <div class="card__img card__img--<?= $phCls ?><?= $t['image'] ? ' card__img--img' : '' ?>">
-                        <?php if ($t['image'] && is_file(UPLOAD_DIR . $t['image'])): ?>
-                            <img src="/uploads/<?= e($t['image']) ?>" alt="<?= e($t['title']) ?>">
-                        <?php else: echo $phIcon; endif; ?>
-                    </div>
                     <div class="card__body">
-                        <div><span class="chip"><?= e($t['category_name']) ?></span></div>
-                        <h3 class="card__title"><a href="/tour.php?id=<?= (int)$t['id'] ?>"><?= e($t['title']) ?></a></h3>
-                        <div class="card__meta">
-                            <span>📍 <?= e($t['country']) ?></span>
-                            <span>📅 <?= (int)$t['days'] ?> дн.</span>
-                            <span class="rating">★ <?= e($t['rating']) ?></span>
-                        </div>
-                        <p class="card__desc"><?= e($t['description']) ?></p>
+                        <div><span class="chip"><?= e($g['country']) ?></span></div>
+                        <h3 class="card__title">
+                            <a href="/guide.php?id=<?= (int)$g['id'] ?>"><?= e($g['city']) ?>: <?= e($g['title']) ?></a>
+                        </h3>
+                        <p class="card__desc"><?= e($g['description']) ?></p>
                         <div class="card__footer">
-                            <span class="card__price"><?= price((float)$t['price']) ?></span>
-                            <a href="/tour.php?id=<?= (int)$t['id'] ?>" class="btn btn--primary">Подробнее</a>
+                            <span class="card__price" style="font-size:14px"><?= e($g['city']) ?></span>
+                            <a href="/guide.php?id=<?= (int)$g['id'] ?>" class="btn btn--ghost">Читать</a>
                         </div>
                     </div>
                 </article>
                 <?php endforeach; ?>
             </div>
-            <?php endif; ?>
         </div>
     </section>
+    <?php endif; ?>
 
-    <section class="section">
+    <!-- превью советов -->
+    <section class="section" id="advice-preview">
         <div class="container">
-            <h2 class="section__title">Категории туров</h2>
+            <h2 class="section__title">Советы путешественникам</h2>
             <div class="grid">
-                <?php foreach ($categories as $c): ?>
+                <?php
+                $advicePreview = db()->query(
+                    "SELECT * FROM articles WHERE section = 'advice' ORDER BY created_at DESC LIMIT 3"
+                )->fetchAll();
+                foreach ($advicePreview as $a): ?>
                 <article class="card">
                     <div class="card__body">
-                        <h3 class="card__title"><a href="/tours.php?category=<?= (int)$c['id'] ?>"><?= e($c['name']) ?></a></h3>
-                        <p class="card__desc"><?= e($c['description']) ?></p>
+                        <h3 class="card__title"><a href="/article.php?id=<?= (int)$a['id'] ?>"><?= e($a['title']) ?></a></h3>
+                        <p class="card__desc"><?= e($a['excerpt']) ?></p>
                         <div class="card__footer">
-                            <span class="card__price" style="font-size:14px">
-                                <?php
-                                    // Количество туров в категории
-                                    $cnt = db()->prepare('SELECT COUNT(*) FROM tours WHERE category_id = ?');
-                                    $cnt->execute([$c['id']]);
-                                    echo (int)$cnt->fetchColumn() . ' туров';
-                                ?>
-                            </span>
-                            <a href="/tours.php?category=<?= (int)$c['id'] ?>" class="btn btn--ghost">Смотреть</a>
+                            <span class="card__meta"><?= e($a['author_name']) ?></span>
+                            <a href="/article.php?id=<?= (int)$a['id'] ?>" class="btn btn--primary">Читать</a>
                         </div>
                     </div>
                 </article>
@@ -116,29 +156,52 @@ $categories = db()->query('SELECT * FROM categories ORDER BY name')->fetchAll();
         </div>
     </section>
 
+    <!-- превью фотогалереи -->
     <section class="section">
         <div class="container">
-            <h2 class="section__title">Как это работает</h2>
+            <h2 class="section__title">Из фотогалереи</h2>
             <div class="grid">
-                <article class="card"><div class="card__body">
-                    <h3 class="card__title">1. Выбираете тур</h3>
-                    <p class="card__desc">В каталоге — актуальные направления с ценой, отелем и длительностью. Фильтруете по стране или типу отдыха.</p>
-                </div></article>
-                <article class="card"><div class="card__body">
-                    <h3 class="card__title">2. Оформляете заказ</h3>
-                    <p class="card__desc">Добавляете туры в корзину и оформляете одной формой. Цена фиксируется на момент заказа.</p>
-                </div></article>
-                <article class="card"><div class="card__body">
-                    <h3 class="card__title">3. Ждёте подтверждения</h3>
-                    <p class="card__desc">Менеджер проверяет наличие мест у оператора и связывается с вами.</p>
-                </div></article>
-                <article class="card"><div class="card__body">
-                    <h3 class="card__title">4. Получаете документы</h3>
-                    <p class="card__desc">Путёвка, ваучер на отель и страховка приходят на почту после оплаты.</p>
-                </div></article>
+                <?php foreach ($photos as $i => $p): ?>
+                <article class="card">
+                    <div class="card__img card__img--<?= e($imgCls[$i % 4]) ?>">
+                            <?php if (!empty($p['image_path'])): ?>
+                                <img src="<?= e($p['image_path']) ?>" alt="<?= e($p['title']) ?>" loading="lazy">
+                            <?php else: ?>
+                                <?= e(mb_strtoupper($p['country'])) ?>
+                            <?php endif; ?>
+                        </div>
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/photo.php?id=<?= (int)$p['id'] ?>"><?= e($p['title']) ?></a></h3>
+                        <p class="card__desc"><?= e(mb_strimwidth($p['caption'], 0, 80, '…')) ?></p>
+                    </div>
+                </article>
+                <?php endforeach; ?>
             </div>
         </div>
     </section>
+
+    <?php if ($blog): ?>
+    <!-- превью блога -->
+    <section class="section">
+        <div class="container">
+            <h2 class="section__title">Свежее в блоге</h2>
+            <div class="grid">
+                <?php foreach ($blog as $a): ?>
+                <article class="card">
+                    <div class="card__body">
+                        <h3 class="card__title"><a href="/article.php?id=<?= (int)$a['id'] ?>"><?= e($a['title']) ?></a></h3>
+                        <p class="card__desc"><?= e($a['excerpt']) ?></p>
+                        <div class="card__footer">
+                            <span class="card__meta"><?= e($a['author_name']) ?></span>
+                            <a href="/article.php?id=<?= (int)$a['id'] ?>" class="btn btn--primary">Читать</a>
+                        </div>
+                    </div>
+                </article>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 </main>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

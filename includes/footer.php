@@ -1,18 +1,21 @@
 <?php ?>
+<!-- подвал сайта -->
 <footer class="footer">
     <div class="container">
         <div class="footer__inner">
             <div class="footer__col">
                 <div class="footer__logo">✈ TravelGuide</div>
-                <p class="footer__text">Продажа готовых туров по направлениям: море, экскурсии, горы, круизы.</p>
+                <p class="footer__text">Путеводители, советы и истории для самостоятельных путешественников.</p>
             </div>
             <div class="footer__col">
                 <h3 class="footer__title">Разделы</h3>
                 <ul class="footer__list">
                     <li><a href="/">Главная</a></li>
-                    <li><a href="/tours.php">Каталог туров</a></li>
-                    <li><a href="/cart.php">Корзина</a></li>
-                    <li><a href="/register.php">Регистрация</a></li>
+                    <li><a href="/guides.php">Путеводители</a></li>
+                    <li><a href="/advice.php">Советы и рекомендации</a></li>
+                    <li><a href="/gallery.php">Фотогалереи</a></li>
+                    <li><a href="/about.php">О нас</a></li>
+                    <li><a href="/blog.php">Блог</a></li>
                 </ul>
             </div>
             <div class="footer__col">
